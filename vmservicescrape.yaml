@@ -1,18 +1,15 @@
 apiVersion: operator.victoriametrics.com/v1beta1
-kind: VMAgent
+kind: VMServiceScrape
 metadata:
-  name: hamamooz-vmagent
+  name: django-metrics
   namespace: monitoring-system
 spec:
-  serviceScrapeNamespaceSelector:
+  namespaceSelector:
+    matchNames:
+      - application
+  selector:
     matchLabels:
-      kubernetes.io/metadata.name: monitoring-system
-
-  serviceScrapeSelector:
-    matchLabels: {}
-
-  replicaCount: 1
-  scrapeInterval: 15s
-
-  remoteWrite:
-    - url: "http://hamamooz-vmsingle.monitoring-system.svc:8428/api/v1/write"
+      service: django
+  endpoints:
+    - port: metrics
+      path: /api/metrics

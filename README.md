@@ -27,5 +27,69 @@ Before starting anything, I preferred to read more about concepts in this part, 
    - VMServiceScrape: This is going to identify which targets we are going to collect their metrics
    - VMAgent: This is going to collect metrics from targets and remote write them
    - VMSingle: This is going to store collected metrics is storage
-  
+
+Now for deploying the Pipeline I followed this structure: 
+
+django /metrics --> django service <-- VNServiceScrape matches and targets this <--VMAgent collects metrics and writes <-- VMSingle stores metrics on storage
+
+
+### VMSingle
+
+`VMSingle` is the VictoriaMetrics component responsible for **storing the collected metrics**.
+
+Metrics are retained for 4 days. Data older than this is automatically removed.
+
+```yaml
+storage:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+```
+
+This requests a **1 GiB persistent volume** for storing the metrics. `ReadWriteOnce` means the volume can be mounted for read/write by one node.
+
+---
+
+## VMAgent
+
+`VMAgent` is responsible for **discovering scrape targets, collecting metrics, and sending them to VictoriaMetrics**.
+
+```yaml
+serviceScrapeNamespaceSelector:
+  matchNames:
+    - monitoring-system
+```
+
+This tells VMAgent to look for `VMServiceScrape` resources in the `monitoring-system` namespace which we have made VmServiceScrape in it.
+
+```yaml
+serviceScrapeSelector:
+  matchLabels: {}
+```
+
+An empty selector means that VMAgent accepts all matching `VMServiceScrape` objects in the selected namespace.
+
+```yaml
+replicaCount: 1
+scrapeInterval: 15s
+```
+
+There is one VMAgent replica, and it collects metrics every 15 seconds.
+
+```yaml
+remoteWrite:
+  - url: "http://hamamooz-vmsingle.monitoring-system.svc:8428/api/v1/write"
+```
+
+After collecting metrics, VMAgent sends them to the VMSingle instance through its Kubernetes Service.
+
+Therefore, the flow is:
+
+**VMServiceScrape --> VMAgent --> VMSingle**
+
+---
+
+
 everything was made using manifests but thanks to great internet connectivity I enjoyed suffering from ImagePullBackOff and similar errors preventing pods to be up!

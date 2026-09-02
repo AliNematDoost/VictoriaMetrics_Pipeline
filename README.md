@@ -52,7 +52,7 @@ This requests a **1 GiB persistent volume** for storing the metrics. `ReadWriteO
 
 ---
 
-## VMAgent
+### VMAgent
 
 `VMAgent` is responsible for **discovering scrape targets, collecting metrics, and sending them to VictoriaMetrics**.
 
@@ -90,6 +90,56 @@ Therefore, the flow is:
 **VMServiceScrape --> VMAgent --> VMSingle**
 
 ---
+
+### VMServiceScrape
+
+`VMServiceScrape` tells VMAgent **which Kubernetes Service to scrape and where the metrics endpoint is located**.
+
+```yaml
+namespaceSelector:
+  matchNames:
+    - application
+```
+
+This tells VMAgent to look for the target Service in the `application` namespace.
+
+```yaml
+selector:
+  matchLabels:
+    service: django
+```
+
+It selects the Django Service using its label:
+
+```yaml
+service: django
+```
+
+label.
+
+```yaml
+endpoints:
+  - port: metrics
+    path: /api/metrics
+```
+
+This tells VMAgent to scrape the selected Service on the port named `metrics` and request:
+
+```text
+/api/metrics
+```
+
+So this resource creates the connection:
+
+```text
+Django Service --> VMServiceScrape --> VMAgent
+```
+
+Together with the other components, the complete pipeline is:
+
+```text
+Django /api/metrics --> Django Service --> VMServiceScrape --> VMAgent --> VMSingle
+```
 
 
 everything was made using manifests but thanks to great internet connectivity I enjoyed suffering from ImagePullBackOff and similar errors preventing pods to be up!

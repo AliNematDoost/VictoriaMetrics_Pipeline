@@ -263,3 +263,25 @@ spec:
 ```
 
 And created a new rule to also accept /prometheus which is used for query API calles in vmui.
+
+### Getting 400 for scraping /api/metrics
+
+After port forwarding VMAgent and getting the list of targets using this command:
+```
+curl localhost:8429/targets
+```
+
+I found out that the VMAgent trying to scrape is getting 400 error from django pod. that was because of because of `DJANGO_ALLOWED_HOSTS` in Django application that only allows specific hosts. The value of DJANGO_ALLOWED_HOSTS used to be `nematdoust.osdl.ir` in order to send request to Backend pod only through ingress. But when VMAgent tries to connect to Django pod to scrape and collect metrics it uses http://<pod_IP>:8000/api/metrics and host <pod_IP>:8000 is not allowed in Django settings. 
+
+So changed the value of DJANGO_ALLOWED_HOSTS to '*' and restarted Django pod to use the new config and after that VMAgent was able to collect metrics successfully:
+```
+curl localhost:8429/targets
+job=serviceScrape/monitoring-system/django-metrics/0 (1/1 up)
+	state=up, endpoint=http://10.42.0.66:8000/api/metrics, labels={container="django",endpoint="metrics",instance="10.42.0.66:8000",job="django-service",namespace="application",pod="django-756c467667-gj8kx",service="django-service"}, scrapes_total=1250, scrapes_failed=0, last_scrape=1.718s ago, scrape_duration=44ms, scrape_response_size=55KiB, samples_scraped=489, error=
+job=serviceScrape/monitoring-system/vmagent-hamamooz-vmagent/0 (1/1 up)
+	state=up, endpoint=http://10.42.1.68:8429/metrics, labels={container="vmagent",endpoint="http",instance="10.42.1.68:8429",job="vmagent-hamamooz-vmagent",namespace="monitoring-system",pod="vmagent-hamamooz-vmagent-6cfd6d867d-svt8p",service="vmagent-hamamooz-vmagent",victoriametrics_app="true"}, scrapes_total=4694, scrapes_failed=0, last_scrape=6.201s ago, scrape_duration=4ms, scrape_response_size=73KiB, samples_scraped=1077, error=
+job=serviceScrape/monitoring-system/vmagent-hamamooz-vmagent/1 (1/1 up)
+	state=up, endpoint=http://10.42.1.68:8435/metrics, labels={container="config-reloader",endpoint="8435",instance="10.42.1.68:8435",job="vmagent-hamamooz-vmagent-reloader-http",namespace="monitoring-system",pod="vmagent-hamamooz-vmagent-6cfd6d867d-svt8p",service="vmagent-hamamooz-vmagent"}, scrapes_total=4694, scrapes_failed=0, last_scrape=1.721s ago, scrape_duration=2ms, scrape_response_size=17KiB, samples_scraped=290, error=
+job=serviceScrape/monitoring-system/vmsingle-hamamooz-vmsingle/0 (1/1 up)
+	state=up, endpoint=http://10.42.1.67:8429/metrics, labels={container="vmsingle",endpoint="http",instance="10.42.1.67:8429",job="vmsingle-hamamooz-vmsingle",namespace="monitoring-system",pod="vmsingle-hamamooz-vmsingle-5bf65bdbcd-sj2p7",service="vmsingle-hamamooz-vmsingle",victoriametrics_app="true"}, scrapes_total=4693, scrapes_failed=0, last_scrape=10.218s ago, scrape_duration=6ms, scrape_response_size=67KiB, samples_scraped=1101, error=
+```
